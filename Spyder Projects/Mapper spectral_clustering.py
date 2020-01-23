@@ -1,16 +1,18 @@
 '''
-        Documentación del kernel MeanShift:
-            https://scikit-learn.org/stable/modules/clustering.html#affinity-propagation
+        Documentación del kernel SpectralClustering:
+            https://scikit-learn.org/stable/modules/clustering.html#spectral-clustering
 '''
+#import os
+#import sys
+#import base64
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 from sklearn import ensemble
-from sklearn.cluster import AffinityPropagation
+from sklearn.cluster import SpectralClustering
 import kmapper as km
 import pandas as pd
-
-
+import networkx as nx
 
 ###########################################
 ###Cargamos los datos#### Importar datos###         
@@ -20,12 +22,20 @@ df = pd.read_csv("C://Users/ServW10/Documents/Datasets/betti0AbnormalMessidor.cs
 feature_names = [c for c in df.columns if c not in ["70"]]
 #Funcion lambda para clasificacion de datos df["70"] = df["70"].apply(lambda x: 1 if x == "M" else 0)
 X = np.array(df["70"])#.fillna(0))
-y = np.array(df["70"])
+y = df["70"]
 print(X.shape)
 X = X.reshape(-1, 1)
 print(X.shape)
-data = X
 
+shape=(X.shape[0],X.shape[0])
+zeros = np.zeros(shape, dtype=np.int32)
+zeros[:X.shape[0], :X.shape[1]] = X
+zeros
+print(zeros.shape)
+
+res = np.diag(X) #diagonalise the matrix - this works
+X.resize(shape) #Resize the matrix and fill with zeros
+'''
 ###########################################################################################################
 ### Creamos las imagenes para un array tooltip personalizado                                            ###
 tooltip_s = np.array(y)  # need to make sure to feed it as a NumPy array, not a list                    ###
@@ -57,33 +67,17 @@ lens2 = mapper.fit_transform(X, projection="l2norm")
 # Combine both lenses to get a 2-D [Isolation Forest, L^2-Norm] lens
 lens = np.c_[lens1, lens2]
 
-###########################################################################################################################################
-### Aplicacion del cluster Affinity Propagation proveniente de la libreria SKLearn                                                       ##
-#                                                                                                                                        ##
-#AffinityPropagation creates clusters by sending messages between pairs of samples until convergence.                                    ##
-#A dataset is then described using a small number of exemplars, which are identified as those most representative of other samples.      ##
-#The messages sent between pairs represent the suitability for one sample to be the exemplar of the other,                               ##
-#which is updated in response to the values from other pairs. This updating happens iteratively until convergence,                       ##
-#at which point the final exemplars are chosen, and hence the final clustering is given.                                                 ##
-###########################################################################################################################################
-#############################################################################################################################################
-###Creacion del grafo(nos agrupamos en los datos proyectados y sufrimos pérdida de proyección), OCUPAREMOS LOS MISMOS VALORES EN TODOS LADOS#
-#############################################################################################################################################
-projected_data = mapper.fit_transform(lens,
-                                      projection=sklearn.manifold.TSNE())#t-distributed Stochastic Neighbor Embedding.
 
+##############################################################################################################
+### Aplicacion del cluster SpectralClustering proveniente de la libreria SKLearn                                       ###
+##############################################################################################################
+sc = SpectralClustering(n_clusters=2, affinity='nearest_neighbors', random_state=0)
+sc_clustering = sc.fit(X)
 
-graph = mapper.map(projected_data,
-                   clusterer=sklearn.cluster.AffinityPropagation(damping=0.5,
-                                    max_iter=200,
-                                    convergence_iter=15,
-                                    copy=True,
-                                    preference=None,
-                                    affinity='euclidean', 
-                                    verbose=False)
-                   )
-
-
+graph = mapper.map(lens,
+                      sc_clustering,
+                      nr_cubes=15,#15
+                      overlap_perc=0.7)
 
 ##############################################################################################################
 ###creacion de las vizualizaciones(Incrementado el graph_gravity para una apariencia gráfica más ajustada.)###
@@ -93,16 +87,18 @@ print("Output: Grafo de ejemplo para HTML" )
 ### Tooltip con datos de imagen para cada miembro del cluster
 mapper.visualize(graph,
                  title="Algoritmo Mapper en digitos escritos a mano",
-                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_AffinityPropagation_dataCluster.html",
+                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_SpectralClustering_dataCluster.html",
                  #color_function=labels,
                  custom_tooltips=tooltip_s)
 
 ### Toolptips con el target y-labels para cada miembro del cluster
 mapper.visualize(graph,
                  title="Algoritmo Mapper en digitos escritos a mano",
-                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_AffinityPropagation_labelsCluster.html",
+                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_KSpectralClustering_labelsCluster.html",
                  custom_tooltips=y)
 
 # Matplotlib ejemplo para mostrar en consola y comparar
 km.draw_matplotlib(graph)#, layout="spring"
 plt.show()
+'''
+

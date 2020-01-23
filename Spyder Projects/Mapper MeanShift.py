@@ -1,16 +1,20 @@
 '''
         Documentación del kernel MeanShift:
-            https://scikit-learn.org/stable/modules/clustering.html#affinity-propagation
+            https://scikit-learn.org/stable/modules/clustering.html#mean-shift
 '''
+
+
+
+#import os
+#import sys
+#import base64
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 from sklearn import ensemble
-from sklearn.cluster import AffinityPropagation
+from sklearn.cluster import MeanShift, estimate_bandwidth
 import kmapper as km
 import pandas as pd
-
-
 
 ###########################################
 ###Cargamos los datos#### Importar datos###         
@@ -24,7 +28,7 @@ y = np.array(df["70"])
 print(X.shape)
 X = X.reshape(-1, 1)
 print(X.shape)
-data = X
+
 
 ###########################################################################################################
 ### Creamos las imagenes para un array tooltip personalizado                                            ###
@@ -50,6 +54,8 @@ model = ensemble.IsolationForest(random_state=1729) #If int, random_state is the
 model.fit(X)
 lens1 = model.decision_function(X).reshape((X.shape[0], 1))
 
+
+
 # Create another 1-D lens with L2-norm
 mapper = km.KeplerMapper(verbose=0)
 lens2 = mapper.fit_transform(X, projection="l2norm")
@@ -57,32 +63,16 @@ lens2 = mapper.fit_transform(X, projection="l2norm")
 # Combine both lenses to get a 2-D [Isolation Forest, L^2-Norm] lens
 lens = np.c_[lens1, lens2]
 
-###########################################################################################################################################
-### Aplicacion del cluster Affinity Propagation proveniente de la libreria SKLearn                                                       ##
-#                                                                                                                                        ##
-#AffinityPropagation creates clusters by sending messages between pairs of samples until convergence.                                    ##
-#A dataset is then described using a small number of exemplars, which are identified as those most representative of other samples.      ##
-#The messages sent between pairs represent the suitability for one sample to be the exemplar of the other,                               ##
-#which is updated in response to the values from other pairs. This updating happens iteratively until convergence,                       ##
-#at which point the final exemplars are chosen, and hence the final clustering is given.                                                 ##
-###########################################################################################################################################
-#############################################################################################################################################
-###Creacion del grafo(nos agrupamos en los datos proyectados y sufrimos pérdida de proyección), OCUPAREMOS LOS MISMOS VALORES EN TODOS LADOS#
-#############################################################################################################################################
-projected_data = mapper.fit_transform(lens,
-                                      projection=sklearn.manifold.TSNE())#t-distributed Stochastic Neighbor Embedding.
+# #############################################################################
+# Compute clustering with MeanShift
 
-
-graph = mapper.map(projected_data,
-                   clusterer=sklearn.cluster.AffinityPropagation(damping=0.5,
-                                    max_iter=200,
-                                    convergence_iter=15,
-                                    copy=True,
-                                    preference=None,
-                                    affinity='euclidean', 
-                                    verbose=False)
-                   )
-
+# The following bandwidth can be automatically detected using
+bandwidth = estimate_bandwidth(X, quantile=0.2, n_samples=500)
+graph = mapper.map(lens,
+                      X,
+                      nr_cubes=15,#15
+                      overlap_perc=0.7,#0.7
+                      clusterer=sklearn.cluster.MeanShift(bandwidth=bandwidth, bin_seeding=True))
 
 
 ##############################################################################################################
@@ -92,17 +82,19 @@ print("Output: Grafo de ejemplo para HTML" )
 
 ### Tooltip con datos de imagen para cada miembro del cluster
 mapper.visualize(graph,
-                 title="Algoritmo Mapper en digitos escritos a mano",
-                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_AffinityPropagation_dataCluster.html",
+                 title="Algoritmo Mapper en abnormal messidor",
+                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_MeanShift_dataCluster.html",
                  #color_function=labels,
                  custom_tooltips=tooltip_s)
 
 ### Toolptips con el target y-labels para cada miembro del cluster
 mapper.visualize(graph,
-                 title="Algoritmo Mapper en digitos escritos a mano",
-                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_AffinityPropagation_labelsCluster.html",
+                 title="Algoritmo Mapper en abnormal messidoro",
+                 path_html="C:\\Users\ServW10\Documents\Spyder Projects\Mapper_MeanShift_labelsCluster.html",
                  custom_tooltips=y)
 
 # Matplotlib ejemplo para mostrar en consola y comparar
 km.draw_matplotlib(graph)#, layout="spring"
 plt.show()
+
+
